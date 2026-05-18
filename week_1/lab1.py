@@ -28,10 +28,8 @@ def load_housing() -> pd.DataFrame:
     pd.DataFrame
         A DataFrame containing the 8 predictors plus the target column ``MedHouseVal``.
     """
-    # your code here
-    q1_shape = pd.read_csv("california_housing.csv")
-    return q1_shape
-
+    df = pd.read_csv("california_housing.csv")
+    return df
 
 # Compute the answer required by the autograder
 q1_shape: Tuple[int, int] = load_housing().shape
