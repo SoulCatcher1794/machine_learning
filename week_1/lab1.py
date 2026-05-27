@@ -28,11 +28,10 @@ def load_housing() -> pd.DataFrame:
     pd.DataFrame
         A DataFrame containing the 8 predictors plus the target column ``MedHouseVal``.
     """
-    df = pd.read_csv("california_housing.csv")
+    df = pd.read_csv(_DATA_PATH) # read the data from the CSV file
     return df
 
-# Compute the answer required by the autograder
-q1_shape: Tuple[int, int] = load_housing().shape
+q1_shape: Tuple[int, int] = load_housing().shape # Get the shape of the DataFrame as a tuple (number of rows, number of columns)
 
 # Part 2: Data analysis
 df = load_housing()
@@ -44,7 +43,7 @@ bottom = df[df["MedInc"] <= q1_limit] # All data that is at the bottom 25%
 difference = top["MedHouseVal"].mean() - bottom["MedHouseVal"].mean()
 q2_income_value_gap = round(float(difference), 3)
 
-# Part 3: Model training and evaluation
+# Part 3: Data splitting for training and testing
 X = df.drop(columns=["MedHouseVal"])
 y = df["MedHouseVal"]
 
@@ -55,11 +54,11 @@ q3_split_counts = (n_train, n_test)
 
 # Part 4: KNN regression
 knn = KNeighborsRegressor(n_neighbors=5)
-knn.fit(X_train, y_train)
-y_prediction_knn = knn.predict(X_test)
+knn.fit(X_train, y_train) # Fit the KNN model to the training data (X_train and y_train)
+y_prediction_knn = knn.predict(X_test) # Use the fitted KNN model to predict the target values for the test set (X_test) and store the predictions in y_prediction_knn
 
-mse_knn = mean_squared_error(y_test, y_prediction_knn)
-q4_knn5_rmse = round(float(np.sqrt(mse_knn)), 3)
+mse_knn = mean_squared_error(y_test, y_prediction_knn) # Compute the mean squared error between the true target values (y_test) and the predicted values (y_prediction_knn) using the mean_squared_error function from sklearn.metrics, and store the result in mse_knn
+q4_knn5_rmse = round(float(np.sqrt(mse_knn)), 3) # Calculate the root mean squared error (RMSE) by taking the square root of mse_knn, converting it to a float, rounding it to 3 decimal places, and storing the result in q4_knn5_rmse
 
 def knn_rmse(k: int) -> float: # helper function to compute RMSE for any K
     knn = KNeighborsRegressor(n_neighbors=k)
