@@ -33,6 +33,8 @@ RANDOM_STATE = 42
 df = pd.read_csv('wisconsin_breast_cancer.csv')
 df.head()
 
+
+
 # Grade Cell: Question 2
 #
 # Task: Prepare the data for modeling.
@@ -45,6 +47,8 @@ df.head()
 df['diagnosis'] = df['diagnosis'].map({'M': 1, 'B': 0})
 X = df.drop(columns='diagnosis')
 y = df['diagnosis']
+
+
 
 # Grade Cell: Question 3
 #
@@ -60,6 +64,8 @@ scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train)
 X_test_scaled = scaler.transform(X_test)
 
+
+
 # Grade Cell: Question 4
 #
 # Task: Train a baseline logistic regression model.
@@ -71,6 +77,8 @@ X_test_scaled = scaler.transform(X_test)
 
 log_reg_baseline = LogisticRegression(random_state=RANDOM_STATE)
 log_reg_baseline.fit(X_train_scaled, y_train)
+
+
 
 # Grade Cell: Question 5
 #
@@ -86,6 +94,8 @@ precision_baseline = precision_score(y_test, y_pred_baseline)
 recall_baseline = recall_score(y_test, y_pred_baseline)
 f1_baseline = f1_score(y_test, y_pred_baseline)
 
+
+
 # Grade Cell: Question 6
 #
 # Task: Compute and visualize the confusion matrix for the baseline model.
@@ -95,7 +105,9 @@ f1_baseline = f1_score(y_test, y_pred_baseline)
 # 2. Use `seaborn.heatmap` to visualize the confusion matrix.
 
 conf_matrix_baseline = confusion_matrix(y_test, y_pred_baseline)
-sns.heatmap(conf_matrix_baseline, annot=True, fmt='d', cmap='Blues')
+sns.heatmap(conf_matrix_baseline, annot=True, fmt='d', cmap='Greens')
+
+
 
 # Grade Cell: Question 7
 #
@@ -113,6 +125,8 @@ roc_auc_baseline = auc(fpr, tpr)
 plt.figure()
 plt.plot(fpr, tpr, label=f'ROC curve (area = {roc_auc_baseline:.2f})')
 
+
+
 # Grade Cell: Question 8
 #
 # Task: Train a regularized logistic regression model.
@@ -128,6 +142,8 @@ log_reg_l2.fit(X_train_scaled, y_train)
 y_pred_l2 = log_reg_l2.predict(X_test_scaled)
 accuracy_l2 = accuracy_score(y_test, y_pred_l2)
 
+
+
 # Grade Cell: Question 9
 #
 # Task: Compare the magnitudes of the model coefficients.
@@ -136,8 +152,10 @@ accuracy_l2 = accuracy_score(y_test, y_pred_l2)
 # 1. Calculate the average absolute value of the coefficients for the baseline model (`log_reg_baseline`) and store it in `avg_coef_baseline`.
 # 2. Calculate the average absolute value of the coefficients for the L2 regularized model (`log_reg_l2`) and store it in `avg_coef_l2`.
 
-# your code here
-raise NotImplementedError
+avg_coef_baseline = np.mean(np.abs(log_reg_baseline.coef_))
+avg_coef_l2 = np.mean(np.abs(log_reg_l2.coef_))
+
+
 
 # Grade Cell: Question 10
 #
@@ -149,5 +167,7 @@ raise NotImplementedError
 # 3. Make predictions on the scaled test data.
 # 4. Calculate the accuracy and store it in `accuracy_lda`.
 
-# your code here
-raise NotImplementedError
+lda = LinearDiscriminantAnalysis()
+lda.fit(X_train_scaled, y_train)
+y_pred_lda = lda.predict(X_test_scaled)
+accuracy_lda = accuracy_score(y_test, y_pred_lda)
