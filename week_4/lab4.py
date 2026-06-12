@@ -154,18 +154,20 @@ lasso_cv_mse_mean = np.mean(lasso_cv.mse_path_, axis=1)
 #   * returns (coef_bootstrap_df, coef_ci_95)
 # - Use B=200, RANDOM_STATE
 
-def bootstrap_ols_coefficients(X_train_scaled: np.ndarray, y_train: np.ndarray, B: int = 200) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def bootstrap_ols_coefficients(X_train_scaled, y_train, B=200, random_state=RANDOM_STATE):
+    rng = np.random.default_rng(random_state)
+
     n_samples, n_features = X_train_scaled.shape
     coef_bootstrap = np.zeros((B, n_features))
 
-    for b in range(B):
-        indices = np.random.choice(n_samples, size=n_samples, replace=True)
-        X_bootstrap = X_train_scaled[indices]
-        y_bootstrap = y_train[indices]
+    for iter in range(B):
+        idx = rng.choice(n_samples, size=n_samples, replace=True)
+        X_bootstrap = X_train_scaled[idx]
+        y_bootstrap = y_train[idx]
 
         lr_bootstrap = LinearRegression()
         lr_bootstrap.fit(X_bootstrap, y_bootstrap)
-        coef_bootstrap[b] = lr_bootstrap.coef_
+        coef_bootstrap[iter] = lr_bootstrap.coef_
 
     coef_bootstrap_df = pd.DataFrame(coef_bootstrap, columns=[f'coef_{i}' for i in range(n_features)])
     coef_ci_95 = coef_bootstrap_df.quantile([0.025, 0.975])
@@ -181,30 +183,3 @@ def bootstrap_ols_coefficients(X_train_scaled: np.ndarray, y_train: np.ndarray, 
 # Instructions:
 # - Implement `bootstrap_oob_rmse_ols` that returns (rmse_oob_mean, rmse_oob_ci95)
 # - Use B=200, RANDOM_STATE
-
-
-def bootstrap_oob_rmse_ols(X_train_scaled: np.ndarray, y_train: np.ndarray, B: int = 200) -> Tuple[float, Tuple[float, float]]:
-    n_samples = X_train_scaled.shape[0]
-    oob_rmse = []
-
-    for b in range(B):
-        indices = np.random.choice(n_samples, size=n_samples, replace=True)
-        oob_indices = np.setdiff1d(np.arange(n_samples), indices)
-
-        if len(oob_indices) == 0:
-            continue
-
-        X_bootstrap = X_train_scaled[indices]
-        y_bootstrap = y_train[indices]
-
-        lr_bootstrap = LinearRegression()
-        lr_bootstrap.fit(X_bootstrap, y_bootstrap)
-
-        y_oob_pred = lr_bootstrap.predict(X_train_scaled[oob_indices])
-        rmse_oob = np.sqrt(mean_squared_error(y_train[oob_indices], y_oob_pred))
-        oob_rmse.append(rmse_oob)
-
-    rmse_oob_mean = round(float(np.mean(oob_rmse)), 3)
-    rmse_oob_ci95 = (round(float(np.percentile(oob_rmse, 2.5)), 3), round(float(np.percentile(oob_rmse, 97.5)), 3))
-
-    return rmse_oob_mean, rmse_oob_ci95
