@@ -161,10 +161,12 @@ def bootstrap_ols_coefficients(X_train_scaled, y_train, B=200, random_state=RAND
     coef_bootstrap = np.zeros((B, n_features))
 
     for iter in range(B):
+        # Generate a random index list
         idx = rng.choice(n_samples, size=n_samples, replace=True)
+        # Create bootstrap sample from the original training data using the generated indices
         X_bootstrap = X_train_scaled[idx]
         y_bootstrap = y_train[idx]
-
+        # Fit OLS on the bootstrap sample and store coefficients
         lr_bootstrap = LinearRegression()
         lr_bootstrap.fit(X_bootstrap, y_bootstrap)
         coef_bootstrap[iter] = lr_bootstrap.coef_
