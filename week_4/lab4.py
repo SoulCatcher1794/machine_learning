@@ -87,9 +87,11 @@ r2_ols_test = round(float(r2_score(y_test,y_pred)), 3)
 # - Store `rmse_ols_cv_mean` and `rmse_ols_cv_std` (floats).
 
 kf = KFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
-cv = cross_val_score(lr, X_train_scaled, y_train, cv=kf, scoring='neg_mean_squared_error')
-rmse_ols_cv_mean = round(float(-cv.mean()), 3)
-rmse_ols_cv_std = round(float(cv.std()), 3)
+cv_neg_mse = cross_val_score(lr, X_train_scaled, y_train, cv=kf, scoring='neg_mean_squared_error')
+cv_rmse = np.sqrt(-cv_neg_mse)
+
+rmse_ols_cv_mean = float(np.mean(cv_rmse))
+rmse_ols_cv_std = float(np.std(cv_rmse))
 
 # Grade Cell: Question 6
 #
@@ -154,27 +156,46 @@ lasso_cv_mse_mean = np.mean(lasso_cv.mse_path_, axis=1)
 #   * returns (coef_bootstrap_df, coef_ci_95)
 # - Use B=200, RANDOM_STATE
 
-def bootstrap_ols_coefficients(X_train_scaled, y_train, B=200, random_state=RANDOM_STATE):
+def bootstrap_ols_coefficients(X_train_scaled, y_train, B, random_state):
     rng = np.random.default_rng(random_state)
 
-    n_samples, n_features = X_train_scaled.shape
+    if isinstance(X_train_scaled, pd.DataFrame):
+        X_values = X_train_scaled.to_numpy()
+        feature_names = list(X_train_scaled.columns)
+    else:
+        X_values = np.asarray(X_train_scaled)
+        if "X" in globals() and hasattr(X, "columns") and len(X.columns) == X_values.shape[1]:
+            feature_names = list(X.columns)
+        else:
+            feature_names = [f"feature_{i}" for i in range(X_values.shape[1])]
+
+    y_values = np.asarray(y_train)
+
+    n_samples, n_features = X_values.shape
     coef_bootstrap = np.zeros((B, n_features))
 
     for iter in range(B):
-        # Generate a random index list
-        idx = rng.choice(n_samples, size=n_samples, replace=True)
-        # Create bootstrap sample from the original training data using the generated indices
-        X_bootstrap = X_train_scaled[idx]
-        y_bootstrap = y_train[idx]
-        # Fit OLS on the bootstrap sample and store coefficients
-        lr_bootstrap = LinearRegression()
-        lr_bootstrap.fit(X_bootstrap, y_bootstrap)
-        coef_bootstrap[iter] = lr_bootstrap.coef_
+        idx = rng.choice(n_samples, size=n_samples, replace=True) # Get bootstrap sample indices
+        X_bootstrap = X_values[idx] # Get bootstrap sample features
+        y_bootstrap = y_values[idx] # Get bootstrap sample targets
 
-    coef_bootstrap_df = pd.DataFrame(coef_bootstrap, columns=[f'coef_{i}' for i in range(n_features)])
-    coef_ci_95 = coef_bootstrap_df.quantile([0.025, 0.975])
+        lr = LinearRegression()
+        lr.fit(X_bootstrap, y_bootstrap) # Fit OLS on bootstrap sample
+        coef_bootstrap[iter] = lr.coef_ # Store coefficients for each bootstrap iteration
 
+    coef_bootstrap_df = pd.DataFrame(coef_bootstrap, columns=feature_names) # Convert to DataFrame for quantile calculation
+    coef_ci_95 = pd.DataFrame({
+        "lower": coef_bootstrap_df.quantile(0.025),
+        "upper": coef_bootstrap_df.quantile(0.975),
+    }, index=feature_names) # Compute 95% confidence intervals for each coefficient
     return coef_bootstrap_df, coef_ci_95
+
+coef_bootstrap_df, coef_ci_95 = bootstrap_ols_coefficients(
+    X_train_scaled,
+    y_train,
+    B=200,
+    random_state=RANDOM_STATE,
+)
 
 
 
@@ -185,3 +206,38 @@ def bootstrap_ols_coefficients(X_train_scaled, y_train, B=200, random_state=RAND
 # Instructions:
 # - Implement `bootstrap_oob_rmse_ols` that returns (rmse_oob_mean, rmse_oob_ci95)
 # - Use B=200, RANDOM_STATE
+
+def bootstrap_oob_rmse_ols(X_train_scaled, y_train, B, random_state):
+    rng = np.random.default_rng(random_state)
+
+    n_samples = X_train_scaled.shape[0]
+    rmse_oob = np.zeros(B)
+
+    for iter in range(B):
+        idx = rng.choice(n_samples, size=n_samples, replace=True) # Get bootstrap sample indices
+        oob_idx = np.setdiff1d(np.arange(n_samples), idx) # Get out-of-bag indices
+
+        if len(oob_idx) == 0: # If no OOB samples, skip this iteration
+            continue
+
+        X_bootstrap = X_train_scaled[idx] # Get bootstrap sample features
+        y_bootstrap = y_train.iloc[idx] # Get bootstrap sample targets
+
+        lr = LinearRegression()
+        lr.fit(X_bootstrap, y_bootstrap) # Fit OLS on bootstrap sample
+
+        X_oob = X_train_scaled[oob_idx] # Get OOB features
+        y_oob = y_train.iloc[oob_idx] # Get OOB targets
+        y_oob_pred = lr.predict(X_oob) # Predict on OOB samples
+        rmse_oob[iter] = np.sqrt(mean_squared_error(y_oob, y_oob_pred)) # Compute OOB RMSE for this iteration
+
+    rmse_oob_mean = round(float(np.mean(rmse_oob)), 3)
+    rmse_oob_ci95 = (round(float(np.percentile(rmse_oob, 2.5)), 3), round(float(np.percentile(rmse_oob, 97.5)), 3))
+    return rmse_oob_mean, rmse_oob_ci95
+
+rmse_oob_mean, rmse_oob_ci95 = bootstrap_oob_rmse_ols(
+    X_train_scaled,
+    y_train,
+    B=200,
+    random_state=RANDOM_STATE,
+)
