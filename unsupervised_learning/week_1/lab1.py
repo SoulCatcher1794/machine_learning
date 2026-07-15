@@ -63,14 +63,8 @@ print(f"Columns: {q1_columns}")
 # 4. Store as dictionaries with column names as keys
 
 # your code here
-q2_means = {}
-q2_stds = {}
-
-for column in q1_columns:
-    q2_means[column] = round(df[column].mean(), 2)
-    q2_stds[column] = round(df[column].std(ddof=0), 2)
-
-
+q2_means = df[q1_columns].mean().round(2).to_dict()
+q2_stds = df[q1_columns].std(ddof=0).round(2).to_dict()
 
 # If all tests pass (there might be hidden tests), you will earn 10 points
 # Test Cell: Question 2
@@ -107,10 +101,7 @@ print(f"Feature stds: {q2_stds}")
 # 3. Store as a dictionary
 
 # your code here
-q3_ranges = {}
-
-for column in q1_columns:
-    q3_ranges[column] = round((df[column].max() - df[column].min()), 2)
+q3_ranges = (df[q1_columns].max() - df[q1_columns].min()).round(2).to_dict()
 
 # If all tests pass (there might be hidden tests), you will earn 10 points
 # Test Cell: Question 3
@@ -235,7 +226,9 @@ print(f"Manhattan distance Alabama to Alaska: {q5_manhattan_al_ak}")
 # 3. Store distances in the matrix (it should be symmetric)
 
 # your code here
-
+from scipy.spatial.distance import pdist, squareform
+distance_vector = pdist(df, metric="euclidean")
+q6_dist_matrix = squareform(distance_vector, checks=True)
 
 # If all tests pass (there might be hidden tests), you will earn 15 points
 # Test Cell: Question 6
@@ -275,7 +268,11 @@ print(f"Max distance: {q6_dist_matrix.max():.2f}")
 # 4. Compute means and stds of the scaled data (should be ~0 and ~1)
 
 # your code here
-
+sc = StandardScaler()
+scaled_data = sc.fit_transform(df)
+q7_scaled_data = pd.DataFrame(scaled_data, index=df.index, columns=df.columns)
+q7_scaled_means = q7_scaled_data[q1_columns].mean().round(2).to_dict()
+q7_scaled_stds = q7_scaled_data[q1_columns].std(ddof=0).round(2).to_dict()
 
 # If all tests pass (there might be hidden tests), you will earn 10 points
 # Test Cell: Question 7
@@ -320,7 +317,11 @@ print(f"Scaled stds (should be ~1): {q7_scaled_stds}")
 # 2. Extract the distance between Alabama and Alaska
 
 # your code here
-
+scaled_distance_vector = pdist(q7_scaled_data, metric="euclidean")
+q8_scaled_dist_matrix = squareform(scaled_distance_vector, checks=True)
+idx_Alabama = q7_scaled_data.index.get_loc("Alabama")
+idx_Alaska = q7_scaled_data.index.get_loc("Alaska")
+q8_al_ak_scaled = round(float(q8_scaled_dist_matrix[idx_Alabama, idx_Alaska]), 2)
 
 # If all tests pass (there might be hidden tests), you will earn 10 points
 # Test Cell: Question 8
