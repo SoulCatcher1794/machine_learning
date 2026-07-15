@@ -356,7 +356,17 @@ print(f"Ratio (unstandardized / standardized): {q4_distance_al_ak / q8_al_ak_sca
 # 3. Get the state names corresponding to those indices
 
 # your code here
-
+scaled_distance_matrix = q8_scaled_dist_matrix.copy()
+# Fill diagonal with inf so we can use argmin function in next step
+np.fill_diagonal(scaled_distance_matrix, np.inf)
+# Return a flat index where the minimum distance if found in the distance matrix
+min_index = np.argmin(scaled_distance_matrix)
+# Get row and column index from the flat index using the matrix shape as reference
+x, y = np.unravel_index(min_index, scaled_distance_matrix.shape)
+# Get a states tuple with the names that match those indices
+q9_most_similar_pair = (q7_scaled_data.index[x], q7_scaled_data.index[y])
+# Get the distance between those 2 states above
+q9_min_distance = round(float(scaled_distance_matrix[x, y]), 2)
 
 # If all tests pass (there might be hidden tests), you will earn 10 points
 # Test Cell: Question 9
@@ -393,6 +403,18 @@ print(f"Distance between them: {q9_min_distance}")
 # 3. Return the top k state names
 
 # your code here
+def find_k_nearest(state_name: str, k: int) -> List[str]:
+     # Get the matrix index of the state according to the scaled dataframe
+     state_index = q7_scaled_data.index.get_loc(state_name)
+     # Use the index to get the distance vector of that state
+     state_distances = scaled_distance_matrix[state_index]
+     # Sort the distance list and keep only the top k indices
+     indices = np.argsort(state_distances)[:k]
+     # Get the states names corresponding to those indices from the scaled dataframe index
+     neighbors = q7_scaled_data.index[indices].tolist()
+     return neighbors
+
+q10_ca_neighbors = find_k_nearest("California", 3)
 
 # If all tests pass (there might be hidden tests), you will earn 5 points
 # Test Cell: Question 10
