@@ -253,6 +253,7 @@ print(f"PC1 + PC2 explain {q5_pc1_pc2_total*100:.1f}% of total variance")
 
 q6_threshold = 0.8
 q6_n_components_80 = 0
+
 for index, value in enumerate(q5_cumulative_pve):
     if(value >= q6_threshold):
         q6_n_components_80 = index + 1
@@ -302,16 +303,20 @@ print(f"Actual variance explained: {q6_actual_variance*100:.1f}%")
 # 3. For PC2 (index 1), find the feature with largest |loading|
 # 4. Use q1_columns to get feature names
 
+# Loadings are the weights of the original features per each principal component (shape: PCs x features)
+# Rows are the principal components, columns are the original features
 q7_loadings = q4_pca.components_
+
 # Find the index of the feature with the largest absolute loading for PC1 and PC2
 q7_pc1_top_index = np.argmax(np.abs(q7_loadings[0]))
 q7_pc2_top_index = np.argmax(np.abs(q7_loadings[1]))
-# Get the actual loading values for PC1 and PC2
+
+# Get the feature labels of the features that contribute most to PC1 and PC2
 q7_pc1_top_feature = q1_columns[q7_pc1_top_index]
 q7_pc2_top_feature = q1_columns[q7_pc2_top_index]
+
 # Get the loading value for the top feature of PC1
 q7_pc1_top_loading = float(q7_loadings[0, q7_pc1_top_index])
-
 
 # If all tests pass (there might be hidden tests), you will earn 10 points
 # Test Cell: Question 7
@@ -348,3 +353,172 @@ assert -1 <= q7_pc1_top_loading <= 1, (
 print(f"Loadings shape: {q7_loadings.shape}")
 print(f"PC1 top feature: {q7_pc1_top_feature} (loading: {q7_pc1_top_loading})")
 print(f"PC2 top feature: {q7_pc2_top_feature}")
+
+
+
+# Grade Cell: Question 8
+#
+# Task: Transform data to principal component space
+#
+# Instructions:
+# 1. Use pca.transform() on the standardized data
+# 2. Create a DataFrame with column names "PC1", "PC2", etc.
+# 3. Find the range (min, max) of PC1 scores
+
+q8_scores = pca.transform(q3_scaled_data)
+# Use list comprehension to create column names for the DataFrame
+q8_columns = [f"PC{i}" for i in range(1, q8_scores.shape[1] + 1)]
+q8_scores_df = pd.DataFrame(q8_scores, columns=q8_columns)
+q8_pc1_range = (
+    float(q8_scores_df["PC1"].min().round(2)),
+    float(q8_scores_df["PC1"].max().round(2))
+)
+
+
+# If all tests pass (there might be hidden tests), you will earn 10 points
+# Test Cell: Question 8
+assert isinstance(q8_scores, np.ndarray), (
+    "q8_scores must be a numpy array."
+)
+assert q8_scores.shape == (q1_shape[0], q4_n_components), (
+    f"Scores shape should be ({q1_shape[0]}, {q4_n_components})."
+)
+assert isinstance(q8_scores_df, pd.DataFrame), (
+    "q8_scores_df must be a pandas DataFrame."
+)
+assert q8_scores_df.shape == q8_scores.shape, (
+    "DataFrame should have same shape as scores array."
+)
+assert "PC1" in q8_scores_df.columns, (
+    "DataFrame columns should be named 'PC1', 'PC2', etc."
+)
+assert "PC2" in q8_scores_df.columns, (
+    "DataFrame columns should be named 'PC1', 'PC2', etc."
+)
+assert isinstance(q8_pc1_range, tuple), (
+    "q8_pc1_range must be a tuple (min, max)."
+)
+assert len(q8_pc1_range) == 2, (
+    "q8_pc1_range should have exactly 2 elements (min, max)."
+)
+assert q8_pc1_range[0] < q8_pc1_range[1], (
+    "First element should be min, second should be max."
+)
+print(f"Scores shape: {q8_scores.shape}")
+print(f"DataFrame columns: {list(q8_scores_df.columns[:5])}...")
+print(f"PC1 range: {q8_pc1_range}")
+
+
+
+# Grade Cell: Question 9
+#
+# Task: Visualize PCA results and identify outliers
+#
+# Instructions:
+# 1. Create a scatter plot of PC1 vs PC2
+# 2. Calculate correlation between PC1 and PC2 scores
+# 3. Find the sample furthest from origin (largest sqrt(PC1^2 + PC2^2))
+
+# Create scatter plot of PC1 vs PC2
+plt.figure(figsize=(8, 6))
+plt.scatter(q8_scores_df["PC1"], q8_scores_df["PC2"], alpha=0.7)
+plt.title("PC1 vs PC2")
+plt.xlabel("PC1")
+plt.ylabel("PC2")
+plt.grid(True)
+plt.show()
+q9_plot_created = True
+
+# Use the correlation coefficient function to compute correlation between PC1 and PC2
+# Get the value of the correlation matrix which can be either [0, 1] or [1, 0]
+q9_correlation = np.corrcoef(q8_scores_df["PC1"], q8_scores_df["PC2"])[0, 1]
+q9_pc1_pc2_corr = round(float(q9_correlation), 3)
+
+# Calculate the point furthest from the origin using Euclidean distance
+q9_furthest_distance = np.sqrt(q8_scores_df["PC1"]**2 + q8_scores_df["PC2"]**2)
+# Find the index of the maximum distance
+q9_furthest_from_origin = int(np.argmax(q9_furthest_distance))
+
+# If all tests pass (there might be hidden tests), you will earn 10 points
+# Test Cell: Question 9
+assert q9_plot_created is True, (
+    "Set q9_plot_created to True after creating the scatter plot."
+)
+assert isinstance(q9_pc1_pc2_corr, float), (
+    "q9_pc1_pc2_corr must be a float."
+)
+assert -0.1 <= q9_pc1_pc2_corr <= 0.1, (
+    f"PC1 and PC2 should be uncorrelated (r ~ 0), got {q9_pc1_pc2_corr}. "
+    "Principal components are orthogonal by construction."
+)
+assert isinstance(q9_furthest_from_origin, int), (
+    "q9_furthest_from_origin must be an integer (sample index)."
+)
+assert 0 <= q9_furthest_from_origin < q1_shape[0], (
+    f"Index should be between 0 and {q1_shape[0]-1}."
+)
+print(f"Plot created: {q9_plot_created}")
+print(f"Correlation between PC1 and PC2: {q9_pc1_pc2_corr}")
+print(f"Sample furthest from origin: index {q9_furthest_from_origin}")
+
+
+
+# Grade Cell: Question 10
+#
+# Task: Implement PCA reconstruction and compute reconstruction error
+#
+# Instructions:
+# 1. Create a function that fits PCA with k components and computes reconstruction MSE
+# 2. MSE = mean((original - reconstructed)^2)
+# 3. Compute MSE for all components, 2 components, and 5 components
+
+# Define function to calculate reconstruction error for given number of PCs
+def q10_reconstruction_error(k):
+    pca = PCA(n_components=k)
+    transformed_data = pca.fit_transform(q3_scaled_data)
+    reconstructed_data = pca.inverse_transform(transformed_data)
+    mse = np.mean((q3_scaled_data - reconstructed_data) ** 2).round(4)
+    return mse
+
+q10_mse_all_components = q10_reconstruction_error(q1_n_features)
+q10_mse_2_components = q10_reconstruction_error(2)
+q10_mse_5_components = q10_reconstruction_error(5)
+
+# If all tests pass (there might be hidden tests), you will earn 10 points
+# Test Cell: Question 10
+assert callable(q10_reconstruction_error), (
+    "q10_reconstruction_error should be a function."
+)
+# Test the function
+test_mse = q10_reconstruction_error(3)
+assert isinstance(test_mse, float), (
+    "Function should return a float."
+)
+assert test_mse >= 0, (
+    "MSE must be non-negative."
+)
+
+assert isinstance(q10_mse_all_components, float), (
+    "q10_mse_all_components must be a float."
+)
+assert q10_mse_all_components < 0.0001, (
+    "MSE with all components should be ~0 (perfect reconstruction). "
+    f"Got {q10_mse_all_components}."
+)
+assert isinstance(q10_mse_2_components, float), (
+    "q10_mse_2_components must be a float."
+)
+assert isinstance(q10_mse_5_components, float), (
+    "q10_mse_5_components must be a float."
+)
+# More components should give lower MSE
+assert q10_mse_2_components > q10_mse_5_components, (
+    "MSE with 2 components should be higher than with 5 components. "
+    "More components = better reconstruction."
+)
+assert q10_mse_5_components > q10_mse_all_components, (
+    "MSE with 5 components should be higher than with all components."
+)
+print(f"Reconstruction MSE with all components: {q10_mse_all_components}")
+print(f"Reconstruction MSE with 2 components: {q10_mse_2_components}")
+print(f"Reconstruction MSE with 5 components: {q10_mse_5_components}")
