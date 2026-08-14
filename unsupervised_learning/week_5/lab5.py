@@ -126,7 +126,7 @@ q3_centered_mean = np.nanmean(q3_centered_matrix)
 
 # If all tests pass (there might be hidden tests), you will earn 10 points
 # Test Cell: Question 3
-assert isinstance(++, np.ndarray), "q3_movie_means must be a numpy array."
+assert isinstance(q3_movie_means, np.ndarray), "q3_movie_means must be a numpy array."
 assert q3_movie_means.shape == (
     q1_n_movies,
 ), f"q3_movie_means should have length {q1_n_movies} (one mean per movie)."
@@ -243,3 +243,108 @@ assert q5_reconstruction_error < 1, (
 )
 print(f"Reconstructed matrix shape: {q5_reconstructed.shape}")
 print(f"Reconstruction RMSE: {q5_reconstruction_error}")
+
+
+
+# Grade Cell: Question 6
+#
+# Task: Implement the iterative matrix completion algorithm
+#
+# Instructions:
+# 1. Start with mean-imputed matrix
+# 2. Create a mask for observed entries (not NaN in original)
+# 3. Iterate: SVD reconstruct, update only missing entries
+# 4. Track convergence by monitoring change in imputed values
+
+def q6_complete_matrix(matrix, rank, max_iter):
+    # Fill missing values with column means (assume mean = 0 after centering)
+    new_matrix = np.nan_to_num(matrix, nan=0.0)
+    prev_matrix = new_matrix.copy()
+    # Create a mask (index matrix) for observed entries (not NaN in original matrix)
+    # Compliment of the NaN mask gives True for observed entries
+    mask = ~np.isnan(matrix)
+    # Tracking list of RMSE
+    error_tracking = []
+
+    for _ in range(max_iter):
+        # Reconstruct the matrix using SVD
+        reconstructed_matrix = q5_reconstruct_matrix(new_matrix, rank)
+        # Update matrix with SVD reconstruction only for original missing entries
+        new_matrix[~mask] = reconstructed_matrix[~mask]
+        # Calculate RMSE on observed entries and append to error tracking list
+        rmse = np.sqrt(np.mean( (np.mean(new_matrix) - np.mean(prev_matrix)) ** 2))
+        error_tracking.append(round(float(rmse),4))
+        # Update prev_matrix for the next iteration
+        prev_matrix = new_matrix.copy()
+
+    return new_matrix, error_tracking
+
+q6_completed, q6_errors = q6_complete_matrix(q3_centered_matrix, 5, 20)
+q6_final_error = q6_errors[-1]
+
+
+# If all tests pass (there might be hidden tests), you will earn 15 points
+# Test Cell: Question 6
+assert callable(q6_complete_matrix), "q6_complete_matrix should be a callable function."
+assert isinstance(q6_completed, np.ndarray), "q6_completed must be a numpy array."
+assert (
+    q6_completed.shape == q3_centered_matrix.shape
+), "Completed matrix should have the same shape as input."
+assert not np.isnan(
+    q6_completed
+).any(), "Completed matrix should not contain NaN values."
+# Check that observed values are preserved
+mask = ~np.isnan(q3_centered_matrix)
+observed_diff = np.abs(q6_completed[mask] - q3_centered_matrix[mask])
+assert observed_diff.max() < 0.01, (
+    "Observed values should be preserved (not changed during completion). "
+    "Make sure you only update missing entries."
+)
+assert isinstance(q6_final_error, float), "q6_final_error must be a float."
+assert q6_final_error >= 0, "RMSE cannot be negative."
+print(f"Completed matrix shape: {q6_completed.shape}")
+print(f"Number of iterations: {len(q6_errors)}")
+print(f"Final RMSE on observed: {q6_final_error}")
+
+
+
+# Grade Cell: Question 7
+#
+# Task: Select optimal rank using validation by masking
+#
+# Instructions:
+# 1. Create a validation mask: randomly hide 20% of observed entries
+# 2. For each candidate rank, run completion and measure recovery on masked entries
+# 3. Find the rank with lowest validation error
+
+# your code here
+raise NotImplementedError
+
+# If all tests pass (there might be hidden tests), you will earn 10 points
+# Test Cell: Question 7
+assert isinstance(
+    q7_validation_errors, dict
+), "q7_validation_errors must be a dictionary."
+assert set(q7_validation_errors.keys()) == {
+    1,
+    2,
+    3,
+    5,
+    10,
+}, "Should test ranks [1, 2, 3, 5, 10]."
+for rank, error in q7_validation_errors.items():
+    assert isinstance(error, float), f"Error for rank {rank} must be a float."
+    assert error > 0, f"Error for rank {rank} should be positive."
+assert isinstance(q7_best_rank, int), "q7_best_rank must be an integer."
+assert (
+    q7_best_rank in candidate_ranks
+), "q7_best_rank should be one of the tested ranks."
+assert isinstance(q7_best_error, float), "q7_best_error must be a float."
+assert (
+    q7_best_error == q7_validation_errors[q7_best_rank]
+), "q7_best_error should match the error for q7_best_rank."
+print("Validation errors by rank:")
+for rank in sorted(q7_validation_errors.keys()):
+    marker = " <-- best" if rank == q7_best_rank else ""
+    print(f"  Rank {rank}: {q7_validation_errors[rank]:.4f}{marker}")
+print(f"\nBest rank: {q7_best_rank} with error: {q7_best_error:.4f}")
