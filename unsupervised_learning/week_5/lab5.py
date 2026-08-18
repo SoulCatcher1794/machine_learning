@@ -317,8 +317,25 @@ print(f"Final RMSE on observed: {q6_final_error}")
 # 2. For each candidate rank, run completion and measure recovery on masked entries
 # 3. Find the rank with lowest validation error
 
-# your code here
-raise NotImplementedError
+# Create a validation mask to create validation set of 20% of observed entries
+# Random creates a distribution of values between 0 and 1, we compare it to 0.2 to get a boolean mask
+validation_mask = np.random.rand(*q3_centered_matrix.shape) < 0.2
+q7_validation_errors = {}
+# Create list of candidate ranks to test
+candidate_ranks = [1, 2, 3, 5, 10]
+
+for rank in candidate_ranks:
+    # Use Q4 mean-imputed matrix as the starting point for reconstruction
+    masked_matrix = q4_mean_imputed.copy()
+    # Use mask to hide observed entries and reconstruct matrix
+    completed_matrix = q5_reconstruct_matrix(masked_matrix, rank)
+    # Calculate rmse: complete vs reconstructed matrix
+    rmse = np.sqrt(np.mean((completed_matrix[validation_mask] - q4_mean_imputed[validation_mask]) ** 2))
+    q7_validation_errors[rank] = round(float(rmse), 4)
+
+# Find the rank with the lowest validation error
+q7_best_rank = min(q7_validation_errors, key=q7_validation_errors.get)
+q7_best_error = q7_validation_errors[q7_best_rank]
 
 # If all tests pass (there might be hidden tests), you will earn 10 points
 # Test Cell: Question 7
@@ -348,3 +365,183 @@ for rank in sorted(q7_validation_errors.keys()):
     marker = " <-- best" if rank == q7_best_rank else ""
     print(f"  Rank {rank}: {q7_validation_errors[rank]:.4f}{marker}")
 print(f"\nBest rank: {q7_best_rank} with error: {q7_best_error:.4f}")
+
+
+
+# Grade Cell: Question 8
+#
+# Task: Evaluate imputation quality against ground truth
+#
+# Instructions:
+# 1. Load the ground truth matrix
+# 2. Center it using the same movie means from Q3
+# 3. Extract imputed and true values for originally missing entries
+# 4. Compute correlation and RMSE
+
+# Load the ground truth ratings from csv file
+q8_ground_truth = pd.read_csv("ratings_ground_truth.csv").to_numpy()
+# Center using the same movie means from Q3
+q8_centered_ground_truth = q8_ground_truth - q3_movie_means
+# Create a mask of the imputed values from original dataset
+q8_missing_mask = np.isnan(q2_rating_matrix)
+# Use mask to extract imputed and true values for originally missing entries
+# Will use reconstructed matrix from Q5 to get imputed values
+q8_imputed_missing = q6_completed[q8_missing_mask]
+# Use mask to extract true values from complete dataset
+q8_true_missing = q8_centered_ground_truth[q8_missing_mask]
+# Calculate correlation between imputed and true values
+q8_correlation = np.corrcoef(q8_imputed_missing, q8_true_missing).round(3)[0, 1]
+# Calculate RMSE between imputed and true values
+q8_rmse = np.sqrt(np.mean((q8_imputed_missing - q8_true_missing) ** 2)).round(3)
+
+
+# If all tests pass (there might be hidden tests), you will earn 10 points
+# Test Cell: Question 8
+assert isinstance(q8_ground_truth, np.ndarray), "q8_ground_truth must be a numpy array."
+assert (
+    q8_ground_truth.shape == q2_rating_matrix.shape
+), "Ground truth should have the same shape as the rating matrix."
+assert isinstance(
+    q8_imputed_missing, np.ndarray
+), "q8_imputed_missing must be a numpy array."
+assert isinstance(q8_true_missing, np.ndarray), "q8_true_missing must be a numpy array."
+assert len(q8_imputed_missing) == len(
+    q8_true_missing
+), "Imputed and true arrays should have the same length."
+assert (
+    len(q8_imputed_missing) == q2_n_missing
+), "Should have one imputed value per missing entry."
+assert isinstance(q8_correlation, float), "q8_correlation must be a float."
+assert -1 <= q8_correlation <= 1, "Correlation must be between -1 and 1."
+assert isinstance(q8_rmse, float), "q8_rmse must be a float."
+assert q8_rmse >= 0, "RMSE cannot be negative."
+print(f"Number of missing entries evaluated: {len(q8_imputed_missing)}")
+print(f"Correlation (imputed vs true): {q8_correlation}")
+print(f"RMSE (imputed vs true): {q8_rmse}")
+
+
+
+# Grade Cell: Question 9
+#
+# Task: Build a recommender system using the completed matrix
+#
+# Instructions:
+# 1. Create a function that looks up the completed value and un-centers it
+# 2. For user 0, predict ratings for all unrated movies
+# 3. Sort by predicted rating to get top recommendations
+
+def q9_predict_rating(user_id, movie_id, reconstructed_matrix, movie_means):
+    # Look up the completed value for the user and movie
+    completed_value = reconstructed_matrix[user_id, movie_id]
+    # Un-center by adding back the movie mean
+    predicted_rating = round(float(completed_value + movie_means[movie_id]), 3)
+    return predicted_rating
+
+# Use Q6 completed matrix for predictions
+final_completed = q6_completed
+q9_user_0_predictions = {}
+
+# Get the list of unrated movies for user 0
+unrated_movies = np.where(np.isnan(q2_rating_matrix[0]))[0]
+
+# Predict ratings for all unrated movies for user 0
+for movie_id in unrated_movies:
+    predicted_rating = q9_predict_rating(0, movie_id, final_completed, q3_movie_means)
+    q9_user_0_predictions[int(movie_id)] = predicted_rating
+
+# Get the top 5 movie recommendations for user 0
+q9_top_5_movies = sorted(q9_user_0_predictions, key=q9_user_0_predictions.get, reverse=True)[:5]
+
+
+
+# If all tests pass (there might be hidden tests), you will earn 10 points
+# Test Cell: Question 9
+assert callable(q9_predict_rating), "q9_predict_rating should be a callable function."
+# Test the function
+test_pred = q9_predict_rating(0, 0, final_completed, q3_movie_means)
+assert isinstance(test_pred, float), "Prediction should be a float."
+assert 1.0 <= test_pred <= 5.0, "Predicted rating should be in range [1, 5]."
+assert isinstance(
+    q9_user_0_predictions, dict
+), "q9_user_0_predictions must be a dictionary."
+assert len(q9_user_0_predictions) > 0, "User 0 should have some unrated movies."
+for movie_id, rating in q9_user_0_predictions.items():
+    assert isinstance(movie_id, int), "Movie IDs should be integers."
+    assert isinstance(rating, float), "Ratings should be floats."
+    assert 1.0 <= rating <= 5.0, "Ratings should be in [1, 5]."
+assert isinstance(q9_top_5_movies, list), "q9_top_5_movies must be a list."
+assert len(q9_top_5_movies) == 5, "Should recommend exactly 5 movies."
+assert all(isinstance(m, int) for m in q9_top_5_movies), "Movie IDs should be integers."
+# Top movies should be unrated
+assert all(
+    m in unrated_movies for m in q9_top_5_movies
+), "Recommendations should be for unrated movies."
+print(f"User 0 has {len(q9_user_0_predictions)} unrated movies")
+print(f"Top 5 movie recommendations for User 0: {q9_top_5_movies}")
+print("Predicted ratings for top 5:")
+for movie_id in q9_top_5_movies:
+    print(f"  Movie {movie_id}: {q9_user_0_predictions[movie_id]:.2f}")
+
+
+
+# Grade Cell: Question 10
+#
+# Task: Create a complete matrix completion pipeline
+#
+# Instructions:
+# 1. Combine centering, completion, and un-centering into one function
+# 2. Return a dictionary with completed matrix, movie means, and metadata
+
+def q10_matrix_completion_pipeline(rating_matrix, rank=5, max_iter=20):
+    # Calculate movie means
+    movie_means = np.nanmean(rating_matrix, axis=0)
+    # Centering
+    centered_matrix = rating_matrix - movie_means
+    # SVD Reconstruction
+    reconstructed_matrix, convergence_errors = q6_complete_matrix(centered_matrix, rank, max_iter)
+    # Un-centering and fixing OOB values with clip function
+    completed_matrix = np.clip(reconstructed_matrix + movie_means, 1.0, 5.0)
+    # Count missing entries in the original matrix
+    n_missing = int(np.isnan(rating_matrix).sum())
+    
+    return {
+        "completed_matrix": completed_matrix.round(3),
+        "movie_means": movie_means,
+        "n_missing": n_missing,
+        "rank": rank,
+        "convergence_errors": convergence_errors,
+    }
+
+q10_pipeline_result = q10_matrix_completion_pipeline(q2_rating_matrix)
+q10_result_keys = list(q10_pipeline_result.keys())
+
+# If all tests pass (there might be hidden tests), you will earn 5 points
+# Test Cell: Question 10
+assert callable(
+    q10_matrix_completion_pipeline
+), "q10_matrix_completion_pipeline should be a callable function."
+assert isinstance(q10_pipeline_result, dict), "Pipeline should return a dictionary."
+expected_keys = {
+    "completed_matrix",
+    "movie_means",
+    "n_missing",
+    "rank",
+    "convergence_errors",
+}
+assert (
+    set(q10_result_keys) >= expected_keys
+), f"Result should contain keys: {expected_keys}. Got: {set(q10_result_keys)}"
+# Check completed matrix
+completed = q10_pipeline_result["completed_matrix"]
+assert (
+    completed.shape == q2_rating_matrix.shape
+), "Completed matrix should have same shape as input."
+assert not np.isnan(completed).any(), "Completed matrix should not have any NaN values."
+assert (completed >= 1.0).all() and (
+    completed <= 5.0
+).all(), "All ratings should be in range [1, 5]."
+assert isinstance(q10_result_keys, list), "q10_result_keys must be a list."
+print(f"Pipeline result keys: {q10_result_keys}")
+print(f"Completed matrix shape: {completed.shape}")
+print(f"Number of imputed entries: {q10_pipeline_result['n_missing']}")
+print(f"Rank used: {q10_pipeline_result['rank']}")
