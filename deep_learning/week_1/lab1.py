@@ -28,7 +28,7 @@ if not _DATA_PATH.exists():
         "for assistance."
     )
 
-# Question 1: Load the dataset and check its shape
+# Question 1: Load and Explore the Dataset
 
 def load_data() -> pd.DataFrame:
     """Load the Breast Cancer Wisconsin dataset from CSV.
@@ -59,7 +59,7 @@ print(f"Dataset shape: {q1_shape}")
 
 
 
-# Question 2: Separate features and target
+# Question 2: Prepare Features and Target
 
 df = load_data()
 
@@ -82,7 +82,7 @@ assert "target" not in X.columns, (
 print(f"Number of features: {q2_n_features}")
 
 
-# Question 3: Split the dataset into training, validation, and test sets
+# Question 3: Train/Validation/Test Split with Scaling
 
 # First split into train+val (80%) and test (20%)
 X_train_val, X_test, y_train_val, y_test = train_test_split(
@@ -164,12 +164,26 @@ print(f"Total trainable parameters: {q4_n_params}")
 
 # Question 5: Compile and train the model
 
+# Compile the model
 model.compile(
     optimizer='adam',
     loss='binary_crossentropy',
-    metrics=['accuracy']
+    metrics=['accuracy'],
 )
 
+# Train the model
+model.fit(
+    X_train_scaled, y_train,
+    epochs=50,
+    batch_size=32,
+    verbose=0,
+    validation_data=(X_val_scaled, y_val)
+)
+
+# Retrieve the training history
+history = model.history
+# Retrieve the last iteration (-1) and get the accuracy metric
+q5_final_train_acc = round(history.history['accuracy'][-1], 3)
 
 # If all tests pass (there might be hidden tests), you will earn 10 points
 # Test Cell: Question 5
@@ -189,3 +203,120 @@ assert 0 <= q5_final_train_acc <= 1, (
     "Accuracy must be between 0 and 1."
 )
 print(f"Final training accuracy: {q5_final_train_acc:.3f}")
+
+
+
+# Question 6: Plot training curves
+
+# Obtain metrics from the training and validation history
+train_loss = history.history['loss']
+val_loss = history.history['val_loss']
+train_accuracy = history.history['accuracy']
+val_accuracy = history.history['val_accuracy']
+# Define the range of epochs for plotting
+epoch = range(1, len(train_loss) + 1)
+
+# Create figure and axes for the subplots
+q6_fig, q6_axes = plt.subplots(nrows=1, ncols=2)
+
+# Plot loss on axis 0 (left subplot)
+q6_axes[0].plot(epoch, train_loss, label='Train Loss')
+q6_axes[0].plot(epoch, val_loss, label='Validation Loss')
+q6_axes[0].set_xlabel('Epoch')
+q6_axes[0].set_ylabel('Loss')
+q6_axes[0].legend()
+
+# Plot accuracy on axis 1 (right subplot)
+q6_axes[1].plot(epoch, train_accuracy, label='Train Accuracy')
+q6_axes[1].plot(epoch, val_accuracy, label='Validation Accuracy')
+q6_axes[1].set_xlabel('Epoch')
+q6_axes[1].set_ylabel('Accuracy')
+q6_axes[1].legend()
+
+# Prevent overlapping of subplots
+q6_fig.tight_layout()
+
+# If all tests pass (there might be hidden tests), you will earn 10 points
+# Test Cell: Question 6
+assert isinstance(q6_fig, plt.Figure), (
+    "q6_fig must be a matplotlib Figure object. "
+    "Use fig, axes = plt.subplots(...) and store fig in q6_fig."
+)
+assert len(q6_fig.axes) == 2, (
+    "Figure should have exactly 2 subplots (loss and accuracy)."
+)
+print("Training curves plotted successfully!")
+
+
+
+# Question 7: Evaluate on test set
+
+# Evaluate metrics on the test set
+test_loss, test_accuracy = model.evaluate(
+    X_test_scaled, 
+    y_test,
+)
+
+q7_test_metrics = (round(test_loss, 3), round(test_accuracy, 3))
+
+# If all tests pass (there might be hidden tests), you will earn 10 points
+# Test Cell: Question 7
+assert isinstance(q7_test_metrics, tuple), (
+    "q7_test_metrics must be a tuple (loss, accuracy)."
+)
+assert len(q7_test_metrics) == 2, "Tuple should have exactly 2 elements."
+test_loss, test_acc = q7_test_metrics
+assert isinstance(test_loss, float) and isinstance(test_acc, float), (
+    "Both loss and accuracy must be floats."
+)
+assert test_loss >= 0, "Loss must be non-negative."
+assert 0 <= test_acc <= 1, "Accuracy must be between 0 and 1."
+print(f"Test Loss: {test_loss:.3f}, Test Accuracy: {test_acc:.3f}")
+
+
+
+# Question 8: Manual forward pass function
+
+def relu(x):
+    return np.maximum(0, x)
+
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
+def manual_forward_pass(X: np.ndarray, weights: List) -> np.ndarray:
+    # Calculate hidden layers
+    layers = len(weights) - 1
+
+    # For hidden layers (ReLU activation)
+    for layer in range(layers):
+        W = weights[layer][:, :-1]
+        b = weights[layer][:, -1]
+        Z = X @ W + b
+        A = relu(Z)
+        X = A  # Set the output of the current layer as input to the next layer
+
+    # For output layer (sigmoid activation)
+    W, b = weights[-1][:, :-1], weights[-1][:, -1]
+    Z = X @ W + b
+    output = sigmoid(Z)
+
+    return output
+
+q8_manual_preds = manual_forward_pass(X_test_scaled[:5], model.get_weights())
+
+# If all tests pass (there might be hidden tests), you will earn 15 points
+# Test Cell: Question 8
+assert callable(manual_forward_pass), (
+    "manual_forward_pass should be a callable function."
+)
+assert isinstance(q8_manual_preds, np.ndarray), (
+    "q8_manual_preds must be a numpy array."
+)
+assert q8_manual_preds.shape == (5, 1), (
+    f"q8_manual_preds should have shape (5, 1), got {q8_manual_preds.shape}. "
+    "Make sure you're computing predictions for 5 samples with 1 output."
+)
+assert np.all((q8_manual_preds >= 0) & (q8_manual_preds <= 1)), (
+    "Output probabilities must be between 0 and 1. Did you apply sigmoid to the output?"
+)
+print(f"Manual forward pass predictions (first 5):\n{q8_manual_preds.flatten()}")
