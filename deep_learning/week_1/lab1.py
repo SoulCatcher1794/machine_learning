@@ -284,25 +284,34 @@ def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
 def manual_forward_pass(X: np.ndarray, weights: List) -> np.ndarray:
-    # Calculate hidden layers
-    layers = len(weights) - 1
+    # Even indices are weights, odd indices are biases
+    weight_matrix = weights[0::2]
+    bias_matrix = weights[1::2]
+    # Calculate the number of hidden layers
+    hidden_layers = len(weight_matrix) - 1
 
     # For hidden layers (ReLU activation)
-    for layer in range(layers):
-        W = weights[layer][:, :-1]
-        b = weights[layer][:, -1]
+    for layer in range(hidden_layers):
+        W = weight_matrix[layer]
+        b = bias_matrix[layer]
         Z = X @ W + b
         A = relu(Z)
-        X = A  # Set the output of the current layer as input to the next layer
+        # Set the output of the current layer as input to the next layer
+        X = A
 
     # For output layer (sigmoid activation)
-    W, b = weights[-1][:, :-1], weights[-1][:, -1]
+    W = weight_matrix[-1] 
+    b = bias_matrix[-1]
+    # The input matrix is the output of the last hidden layer
     Z = X @ W + b
     output = sigmoid(Z)
 
-    return output
+    return np.round(output, 3)
 
-q8_manual_preds = manual_forward_pass(X_test_scaled[:5], model.get_weights())
+# Get list of weights and bias pair matrices from the model
+q8_weights = model.get_weights()
+# Perform manual forward pass for the first 5 test samples
+q8_manual_preds = manual_forward_pass(X_test_scaled[:5], q8_weights)
 
 # If all tests pass (there might be hidden tests), you will earn 15 points
 # Test Cell: Question 8
@@ -320,3 +329,27 @@ assert np.all((q8_manual_preds >= 0) & (q8_manual_preds <= 1)), (
     "Output probabilities must be between 0 and 1. Did you apply sigmoid to the output?"
 )
 print(f"Manual forward pass predictions (first 5):\n{q8_manual_preds.flatten()}")
+
+
+
+# Question 9: Compare with Logistic Regression Baseline
+lr = LogisticRegression(max_iter=1000,random_state=RANDOM_STATE)
+lr.fit(X_train_scaled, y_train)
+y_pred = lr.predict(X_test_scaled)
+q9_logreg_acc = round(accuracy_score(y_test, y_pred), 3)
+q9_nn_better = q7_test_metrics[1] > q9_logreg_acc
+
+# If all tests pass (there might be hidden tests), you will earn 15 points
+# Test Cell: Question 9
+assert isinstance(q9_logreg_acc, float), (
+    "q9_logreg_acc must be a float."
+)
+assert 0 <= q9_logreg_acc <= 1, (
+    "Accuracy must be between 0 and 1."
+)
+assert isinstance(q9_nn_better, bool), (
+    "q9_nn_better must be a boolean (True or False)."
+)
+print(f"Logistic Regression Test Accuracy: {q9_logreg_acc:.3f}")
+print(f"Neural Network Test Accuracy: {q7_test_metrics[1]:.3f}")
+print(f"Neural Network performed better: {q9_nn_better}")
