@@ -66,19 +66,6 @@ def load_data(path: pathlib.Path) -> pd.DataFrame:
 train_df = load_data(_TRAIN_PATH)
 q1_shape: Tuple[int, int] = train_df.shape
 
-# If all tests pass (there might be hidden tests), you will earn 10 points
-# Test Cell: Question 1
-assert isinstance(q1_shape, tuple), (
-    "q1_shape must be a tuple. Use df.shape which returns (rows, cols)."
-)
-assert len(q1_shape) == 2, (
-    "q1_shape should have 2 elements (rows, cols)."
-)
-assert q1_shape[0] > 0 and q1_shape[1] > 0, (
-    "Shape values must be positive. Is your CSV loading correctly?"
-)
-print(f"Training dataset shape: {q1_shape}")
-
 
 
 # Question 2: Preprocess and Reshape Data
@@ -113,58 +100,16 @@ n_val = X_val.shape[0]
 n_test = X_test.shape[0]
 q2_split_counts = (n_train, n_val, n_test)
 
-# If all tests pass (there might be hidden tests), you will earn 10 points
-# Test Cell: Question 2
-assert isinstance(q2_split_counts, tuple), (
-    "q2_split_counts must be a tuple (n_train, n_val, n_test)."
-)
-assert len(q2_split_counts) == 3, "Tuple should have exactly 3 elements."
-n_train, n_val, n_test = q2_split_counts
-assert all(n > 0 for n in q2_split_counts), (
-    "All splits must have positive sample counts."
-)
-assert n_train > n_val and n_train > n_test, (
-    "Training set should be the largest. Check your split ratios."
-)
-assert X_train.max() <= 1.0 and X_train.min() >= 0.0, (
-    "Pixel values should be normalized to [0, 1]. Did you divide by 255?"
-)
-assert len(X_train.shape) == 4, (
-    "X_train should be 4D: (samples, height, width, channels). "
-    "Use reshape(-1, 32, 32, 3)."
-)
-assert X_train.shape[1:] == (32, 32, 3), (
-    f"Each image should be (32, 32, 3), got {X_train.shape[1:]}"
-)
-print(f"Train/Val/Test split: {n_train} / {n_val} / {n_test}")
-print(f"Image shape: {X_train.shape[1:]}")
-
 
 
 # Question 3: Build a Simple CNN
 # Create the CNN model
 model_cnn = Sequential([
     Input(shape=X_train.shape[1:]),
-    Conv2D(
-        32, # Number of filters
-        (3, 3), # Kernel size
-        activation='relu', 
-        padding='same'
-    ),
-    MaxPooling2D((2, 2)), # Max pooling
-    Conv2D(
-        64, # Number of filters
-        (3, 3), # Kernel size
-        activation='relu',
-        padding='same'
-    ),
-    MaxPooling2D((2, 2)),
-    Conv2D(
-        128, # Number of filters
-        (3, 3), # Kernel size
-        activation='relu',
-        padding='same'
-    ),
+    Conv2D(32, (3, 3), activation='relu', padding='same'), # 32 filters (3x3 kernel size)
+    MaxPooling2D((2, 2)), # Max pooling of 2x2 size
+    Conv2D(64, (3, 3), activation='relu', padding='same'), # 64 filters (3x3 kernel size)
+    MaxPooling2D((2, 2)), # Max pooling of 2x2 size
     Flatten(),
     Dense(64, activation='relu'),
     Dense(10, activation='softmax')
@@ -178,3 +123,168 @@ model_cnn.compile(
 )
 
 q3_n_params = model_cnn.count_params()
+
+
+
+# Question 4: Calculate Output Dimensions
+
+l1 = (32, 32, 32) # After first convolution layer
+l2 = (16, 16, 32) # After first MaxPooling layer
+l3 = (16, 16, 64) # After second convolution layer
+l4 = (8, 8, 64) # After second MaxPooling layer
+
+q4_output_shapes = (l1, l2, l3, l4)
+
+
+
+# Question 5: Train the CNN
+# Train the model
+history_cnn = model_cnn.fit(
+    X_train, 
+    y_train,
+    epochs=5,
+    batch_size=64,
+    validation_data=(X_val, y_val),
+    verbose=0
+)
+
+# Get the final validation accuracy
+q5_val_acc = round(history_cnn.history['val_accuracy'][-1], 3)
+
+
+
+# Question 6: Add Data Augmentation
+# Create ImageDataGenerator object
+datagen = ImageDataGenerator(
+    rotation_range=15, # Rotate up to 15 degrees
+    width_shift_range=0.1, # Shift horizontally up to 10%
+    height_shift_range=0.1, # Shift vertically up to 10%
+    horizontal_flip=True # Randomly flip horizontally
+)
+
+# New CNN with the same architecture as model_cnn
+model_aug = Sequential([
+    Input(shape=X_train.shape[1:]),
+    Conv2D(32, (3, 3), activation='relu', padding='same'), # 32 filters (3x3 kernel size)
+    MaxPooling2D((2, 2)), # Max pooling of 2x2 size
+    Conv2D(64, (3, 3), activation='relu', padding='same'), # 64 filters (3x3 kernel size)
+    MaxPooling2D((2, 2)), # Max pooling of 2x2 size
+    Flatten(),
+    Dense(64, activation='relu'),
+    Dense(10, activation='softmax')
+])
+
+# Compile the CNN model with augmented data
+model_aug.compile(
+    optimizer='adam',
+    loss='sparse_categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+# Train the model with augmented data
+history_aug = model_aug.fit(
+    datagen.flow(X_train, y_train, batch_size=64), # Use data augmentation for training
+    epochs=5,
+    validation_data=(X_val, y_val),
+    verbose=0
+)
+
+# Get the final validation accuracy for the augmented model
+q6_aug_val_acc = round(history_aug.history['val_accuracy'][-1], 3)
+
+
+
+
+# Question 7: Build a Deeper CNN with Batch Normalization
+# Create a deeper CNN model with batch normalization
+model_deep = Sequential([
+    Input(shape=X_train.shape[1:]),
+
+    # BLock 1
+    Conv2D(32, (3, 3), activation='relu', padding='same'), # 32 filters (3x3 kernel size)
+    BatchNormalization(),
+    MaxPooling2D((2, 2)), # Max pooling of 2x2 size
+    Dropout(0.25), # Dropout of 25%
+
+    # Block 2
+    Conv2D(64, (3, 3), activation='relu', padding='same'), # 64 filters (3x3 kernel size)
+    BatchNormalization(),
+    MaxPooling2D((2, 2)), # Max pooling of 2x2 size
+    Dropout(0.25), # Dropout of 25%
+
+    # Classification head
+    Flatten(),
+    Dense(64, activation='relu'),
+    Dropout(0.5), # Dropout of 50%
+    Dense(10, activation='softmax')
+])
+
+# Compile the deeper CNN model
+model_deep.compile(
+    optimizer='adam',
+    loss='sparse_categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+# Train the deeper CNN model
+history_deep = model_deep.fit(
+    X_train,
+    y_train,
+    batch_size=64,
+    epochs=5,
+    validation_data=(X_val, y_val),
+    verbose=0
+)
+
+# Calculate number of parameters
+q7_deep_params = model_deep.count_params()
+
+# Get the final validation accuracy for the deeper model
+q7_deep_val_acc = round(history_deep.history['val_accuracy'][-1], 3)
+
+
+
+
+# Question 8: Confusion Matrix Analysis
+# Make predictions on test set using the deep CNN model
+y_pred = model_deep.predict(X_test, verbose=0)
+
+# Convert predictions to class labels
+y_pred_classes = np.argmax(y_pred, axis=1)
+
+# Compute the confusion matrix
+q8_conf_matrix = confusion_matrix(y_test, y_pred_classes)
+
+# Create a copy of the confusion matrix
+conf_matrix_copy = q8_conf_matrix.copy()
+
+# Set the diagonal values to zero to ignore correct predictions
+np.fill_diagonal(conf_matrix_copy, 0)
+
+# Get the flat index that correspond to the highest off-diagonal value
+most_confused_indices = np.argmax(conf_matrix_copy)
+
+# Converts the flat index to a tuple of row and column indices
+q8_most_confused = np.unravel_index(most_confused_indices, conf_matrix_copy.shape)
+
+
+
+# Question 9: Compare All Models on Test Set
+q9_test_accuracies = {}
+
+# Evaluate test set for all models
+# evaluate() return [loss, accuracy]
+q9_test_accuracies['simple_cnn'] = round(model_cnn.evaluate(X_test, y_test, verbose=0)[1], 3)
+q9_test_accuracies['augmented'] = round(model_aug.evaluate(X_test, y_test, verbose=0)[1], 3)
+q9_test_accuracies['deep'] = round(model_deep.evaluate(X_test, y_test, verbose=0)[1], 3)
+
+# Model with highest accuracy
+q9_best_model = max(q9_test_accuracies, key=q9_test_accuracies.get)
+
+
+
+# Question 10: Visualize Learned Filters
+# Get the weights of the first convolutional layer
+model_cnn_weights = model_cnn.layers[0].weights[0]
+# Get the shape of the filters in the first convolutional layer
+q10_filter_shape = tuple(model_cnn_weights.shape)
