@@ -69,11 +69,11 @@ q1_shape: Tuple[int, int] = train_df.shape
 
 
 # Question 2: Preprocess and Reshape Data
-# Load test data as well
-test_df = load_data(_TEST_PATH)
+# Load test data as well, avoid while running the activity
+# test_df = load_data(_TEST_PATH) 
 
 # Normalize pixel values to the range [0, 1]
-X = train_df.drop(columns="label").to_numpy()/255
+X = train_df.drop(columns="label").to_numpy(dtype=np.float32) / 255.0
 y = train_df["label"]
 
 # Reshaping flat pixels to image format
